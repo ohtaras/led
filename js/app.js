@@ -1,13 +1,5 @@
 import { CoolLedClient, getKnownDevices } from './ble.js';
-import {
-  MODE,
-  buildSpeedPackets,
-  buildBrightnessPackets,
-  buildModePackets,
-  buildPowerPackets,
-  buildInvertDisplayPackets,
-  buildTextPackets,
-} from './protocol.js';
+import { MODE, buildModePackets, buildTextPackets } from './protocol.js';
 import { textToPixelBits, drawPreview } from './render.js';
 
 const $ = (id) => document.getElementById(id);
@@ -25,15 +17,7 @@ const els = {
   bgColor: $('bgColor'),
   fontSize: $('fontSize'),
   mode: $('modeSelect'),
-  speed: $('speedSlider'),
-  speedVal: $('speedVal'),
-  brightness: $('brightnessSlider'),
-  brightnessVal: $('brightnessVal'),
   sendBtn: $('sendBtn'),
-  powerOnBtn: $('powerOnBtn'),
-  powerOffBtn: $('powerOffBtn'),
-  invertBtn: $('invertBtn'),
-  identifyBtn: $('identifyBtn'),
   preview: $('preview'),
   log: $('log'),
 };
@@ -304,73 +288,6 @@ els.mode.addEventListener('change', async () => {
       (client) => client.sendPackets(buildModePackets(mode), { expectNotify: false }),
       `Mode set to ${els.mode.value}`,
     );
-  });
-});
-
-function attachSlider(slider, label, build, name) {
-  slider.addEventListener('input', () => {
-    label.textContent = slider.value;
-  });
-  slider.addEventListener('change', async () => {
-    await withBusy(async () => {
-      await runOnSelected(
-        (client) => client.sendPackets(build(parseInt(slider.value, 10)), { expectNotify: false }),
-        `${name} set to ${slider.value}`,
-      );
-    });
-  });
-}
-
-attachSlider(els.speed, els.speedVal, buildSpeedPackets, 'Speed');
-attachSlider(els.brightness, els.brightnessVal, buildBrightnessPackets, 'Brightness');
-
-els.powerOnBtn.addEventListener('click', async () => {
-  await withBusy(async () => {
-    await runOnSelected((client) => client.sendPackets(buildPowerPackets(true), { expectNotify: true }), 'Power on');
-  });
-});
-
-els.powerOffBtn.addEventListener('click', async () => {
-  await withBusy(async () => {
-    await runOnSelected((client) => client.sendPackets(buildPowerPackets(false), { expectNotify: true }), 'Power off');
-  });
-});
-
-let inverted = false;
-els.invertBtn.addEventListener('click', async () => {
-  await withBusy(async () => {
-    inverted = !inverted;
-    await runOnSelected(
-      (client) => client.sendPackets(buildInvertDisplayPackets(inverted), { expectNotify: false }),
-      `Display inverted: ${inverted}`,
-    );
-  });
-});
-
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-els.identifyBtn.addEventListener('click', async () => {
-  await withBusy(async () => {
-    const height = parseInt(els.height.value, 10);
-    const idOptions = {
-      color: '#ffffff',
-      backgroundColor: '#000000',
-      fontFamily: 'sans-serif',
-      fontPx: parseInt(els.fontSize.value, 10),
-    };
-
-    await runOnSelected(async (client) => {
-      const name = getLabel(client.device);
-      const namePackets = buildTextPackets(name, textToPixelBits(name, idOptions, height).pixelBits);
-      const blankPackets = buildTextPackets(' ', textToPixelBits(' ', idOptions, height).pixelBits);
-
-      await client.sendPackets(buildModePackets(MODE.STATIC), { expectNotify: false });
-      for (let i = 0; i < 6; i++) {
-        await client.sendPackets(i % 2 === 0 ? namePackets : blankPackets, { expectNotify: true });
-        await delay(400);
-      }
-      await client.sendPackets(namePackets, { expectNotify: true });
-    }, 'Identify');
   });
 });
 
