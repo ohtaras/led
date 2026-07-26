@@ -22,6 +22,10 @@ export class CoolLedClient extends EventTarget {
     return this.device ? this.device.name : null;
   }
 
+  get deviceId() {
+    return this.device ? this.device.id : null;
+  }
+
   async connect() {
     if (!navigator.bluetooth) {
       throw new Error('Web Bluetooth is not available in this browser.');

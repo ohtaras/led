@@ -232,6 +232,19 @@ input[type='range'] {
 .device-row .device-name {
   flex: 1;
   font-size: 0.9rem;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+  min-width: 0;
+}
+
+.device-row .device-name:hover,
+.device-row .device-name:focus {
+  background: var(--panel);
+  border-color: var(--border);
+  outline: none;
 }
 
 .device-row .device-status {
