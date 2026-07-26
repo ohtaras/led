@@ -119,7 +119,13 @@ function renderDeviceList() {
   if (devices.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'hint';
-    empty.textContent = 'No signs yet. Click "+ Add sign" (top right) to grant access to one.';
+    if (navigator.bluetooth && !navigator.bluetooth.getDevices) {
+      empty.textContent =
+        'This browser can\'t remember previously granted signs, so this list will always start ' +
+        'empty. Click "+ Add sign" (top right) each time you want to (re)connect one.';
+    } else {
+      empty.textContent = 'No signs yet. Click "+ Add sign" (top right) to grant access to one.';
+    }
     els.deviceList.appendChild(empty);
   }
   for (const dev of devices) {
