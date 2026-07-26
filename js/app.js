@@ -4,14 +4,18 @@ import { textToPixelBits, drawPreview } from './render.js';
 
 const $ = (id) => document.getElementById(id);
 
+// Fixed to match the signs actually in use; no UI control for these since
+// they never need to change (width only ever affected the preview scale,
+// never what's sent to the sign).
+const DEVICE_WIDTH = 64;
+const DEVICE_HEIGHT = 16;
+
 const els = {
   connectBtn: $('connectBtn'),
   status: $('status'),
   panel: $('controlPanel'),
   unsupported: $('unsupported'),
   deviceList: $('deviceList'),
-  width: $('deviceWidth'),
-  height: $('deviceHeight'),
   text: $('textInput'),
   color: $('textColor'),
   bgColor: $('bgColor'),
@@ -226,8 +230,6 @@ function selectedClients() {
 }
 
 function renderPreview() {
-  const width = parseInt(els.width.value, 10);
-  const height = parseInt(els.height.value, 10);
   try {
     drawPreview(
       els.preview,
@@ -238,8 +240,8 @@ function renderPreview() {
         fontFamily: 'sans-serif',
         fontPx: parseInt(els.fontSize.value, 10),
       },
-      width,
-      height,
+      DEVICE_WIDTH,
+      DEVICE_HEIGHT,
     );
   } catch (err) {
     log(`Preview error: ${err.message}`, 'error');
@@ -303,7 +305,6 @@ els.connectBtn.addEventListener('click', async () => {
 
 els.sendBtn.addEventListener('click', async () => {
   await withBusy(async () => {
-    const height = parseInt(els.height.value, 10);
     const messageText = getMessageText();
     const { pixelBits } = textToPixelBits(
       messageText,
@@ -313,7 +314,7 @@ els.sendBtn.addEventListener('click', async () => {
         fontFamily: 'sans-serif',
         fontPx: parseInt(els.fontSize.value, 10),
       },
-      height,
+      DEVICE_HEIGHT,
     );
     const packets = buildTextPackets(messageText, pixelBits);
     await runOnSelected(async (client) => {
@@ -386,7 +387,7 @@ els.fetchOpapBtn.addEventListener('click', async () => {
   });
 });
 
-[els.text, els.bgColor, els.fontSize, els.width, els.height].forEach((el) => {
+[els.text, els.bgColor, els.fontSize].forEach((el) => {
   el.addEventListener('input', renderPreview);
 });
 
