@@ -181,6 +181,7 @@ function renderDeviceList() {
 
 async function initKnownDevices() {
   const known = await getKnownDevices();
+  log(`Auto-reconnect: found ${known.length} previously-granted sign(s).`);
   for (const device of known) {
     if (!devices.some((d) => d.device.id === device.id)) {
       devices.push({ device, client: null, selected: true });
@@ -193,6 +194,7 @@ async function initKnownDevices() {
   // devices; ones that are off or out of range simply fail quietly and stay
   // listed as "available" for a manual retry later.
   for (const dev of devices) {
+    log(`Auto-reconnect: trying ${getLabel(dev.device)}...`);
     await connectDevice(dev, { silent: true });
   }
 }
