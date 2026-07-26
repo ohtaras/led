@@ -96,7 +96,7 @@ async function withBusy(fn) {
   }
 }
 
-async function connectDevice(dev) {
+async function connectDevice(dev, { silent = false } = {}) {
   await withBusy(async () => {
     if (!dev.client) {
       dev.client = new CoolLedClient(dev.device);
@@ -109,8 +109,13 @@ async function connectDevice(dev) {
         renderDeviceList();
       });
     }
-    await dev.client.connect();
-    renderDeviceList();
+    try {
+      await dev.client.connect();
+      renderDeviceList();
+    } catch (err) {
+      renderDeviceList();
+      if (!silent) throw err;
+    }
   });
 }
 
@@ -182,6 +187,14 @@ async function initKnownDevices() {
     }
   }
   renderDeviceList();
+
+  // Try to reconnect every already-granted sign automatically, one at a
+  // time. This needs no click because the browser already trusts these
+  // devices; ones that are off or out of range simply fail quietly and stay
+  // listed as "available" for a manual retry later.
+  for (const dev of devices) {
+    await connectDevice(dev, { silent: true });
+  }
 }
 
 function selectedClients() {
