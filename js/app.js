@@ -42,6 +42,39 @@ const els = {
 // connected at once; "selected" controls whether an action applies to it.
 const devices = [];
 
+// Custom nicknames per physical sign, persisted across sessions and keyed by
+// the Web Bluetooth device id (stable per physical device + browser origin).
+const LABELS_KEY = 'coolledx-labels';
+
+function loadLabels() {
+  try {
+    return JSON.parse(localStorage.getItem(LABELS_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveLabels(labels) {
+  localStorage.setItem(LABELS_KEY, JSON.stringify(labels));
+}
+
+const labels = loadLabels();
+
+function getLabel(client) {
+  return (client.deviceId && labels[client.deviceId]) || client.deviceName || 'Sign';
+}
+
+function setLabel(client, label) {
+  if (!client.deviceId) return;
+  const trimmed = label.trim();
+  if (trimmed) {
+    labels[client.deviceId] = trimmed;
+  } else {
+    delete labels[client.deviceId];
+  }
+  saveLabels(labels);
+}
+
 function log(message, kind = 'info') {
   const line = document.createElement('div');
   line.className = `log-line log-${kind}`;
@@ -69,9 +102,15 @@ function renderDeviceList() {
       dev.selected = checkbox.checked;
     });
 
-    const name = document.createElement('span');
+    const name = document.createElement('input');
+    name.type = 'text';
     name.className = 'device-name';
-    name.textContent = dev.client.deviceName || 'Sign';
+    name.value = getLabel(dev.client);
+    name.title = `Bluetooth name: ${dev.client.deviceName || 'unknown'}`;
+    name.addEventListener('change', () => {
+      setLabel(dev.client, name.value);
+      renderDeviceList();
+    });
 
     const status = document.createElement('span');
     status.className = 'device-status';
@@ -135,13 +174,16 @@ async function runOnSelected(action, actionName) {
     return;
   }
   const results = await Promise.allSettled(targets.map((client) => action(client)));
-  const failures = results.filter((r) => r.status === 'rejected');
+  const failures = [];
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') failures.push({ client: targets[i], reason: r.reason });
+  });
   const okCount = targets.length - failures.length;
   if (failures.length === 0) {
     log(`${actionName}: done on ${okCount} sign(s).`, 'success');
   } else {
     log(`${actionName}: ${okCount} succeeded, ${failures.length} failed.`, 'error');
-    failures.forEach((r) => log(r.reason.message, 'error'));
+    failures.forEach(({ client, reason }) => log(`${getLabel(client)}: ${reason.message}`, 'error'));
   }
 }
 
@@ -151,11 +193,11 @@ els.connectBtn.addEventListener('click', async () => {
     const client = new CoolLedClient();
     const dev = { client, selected: true };
     client.addEventListener('connected', () => {
-      log(`Connected to ${client.deviceName}`, 'success');
+      log(`Connected to ${getLabel(client)}`, 'success');
       renderDeviceList();
     });
     client.addEventListener('disconnected', () => {
-      log(`${client.deviceName || 'Sign'} disconnected`, 'error');
+      log(`${getLabel(client)} disconnected`, 'error');
       renderDeviceList();
     });
     await client.connect();
@@ -245,7 +287,7 @@ els.identifyBtn.addEventListener('click', async () => {
     };
 
     await runOnSelected(async (client) => {
-      const name = client.deviceName || 'LED';
+      const name = getLabel(client);
       const namePackets = buildTextPackets(name, textToPixelBits(name, idOptions, height).pixelBits);
       const blankPackets = buildTextPackets(' ', textToPixelBits(' ', idOptions, height).pixelBits);
 
