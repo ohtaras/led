@@ -352,11 +352,11 @@ function buildMessageFromAmounts() {
   // look of the original app's messages instead of one flat color.
   const segments = [
     { text: 'JACKPOT TZOKER ', color: '#ffffff' },
-    { text: `${tzoker}€ `, color: '#ff0000' },
-    { text: '– ΛΟΤΤΟ ', color: '#00ffff' },
-    { text: `${lotto}€ ΚΑΘΕ ΜΗΝΑ !!! `, color: '#ffff00' },
-    { text: '– EUROJACKPOT ', color: '#00ff00' },
-    { text: `${eurojackpot}€`, color: '#ff00ff' },
+    { text: `${tzoker}€ `, color: '#00ff00' },
+    { text: '– ΛΟΤΤΟ ', color: '#ffffff' },
+    { text: `${lotto}€ `, color: '#00ff00' },
+    { text: 'ΚΑΘΕ ΜΗΝΑ !!! – EUROJACKPOT ', color: '#ffffff' },
+    { text: `${eurojackpot}€`, color: '#00ff00' },
   ];
 
   els.text.innerHTML = '';
