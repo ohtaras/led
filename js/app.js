@@ -17,6 +17,10 @@ const els = {
   bgColor: $('bgColor'),
   fontSize: $('fontSize'),
   mode: $('modeSelect'),
+  tzokerAmount: $('tzokerAmount'),
+  lottoAmount: $('lottoAmount'),
+  eurojackpotAmount: $('eurojackpotAmount'),
+  buildMessageBtn: $('buildMessageBtn'),
   sendBtn: $('sendBtn'),
   preview: $('preview'),
   log: $('log'),
@@ -279,6 +283,19 @@ els.sendBtn.addEventListener('click', async () => {
     const packets = buildTextPackets(els.text.value, pixelBits);
     await runOnSelected((client) => client.sendPackets(packets, { expectNotify: true }), 'Send text');
   });
+});
+
+function formatEuro(value) {
+  return Number(value || 0).toLocaleString('el-GR');
+}
+
+els.buildMessageBtn.addEventListener('click', () => {
+  const tzoker = formatEuro(els.tzokerAmount.value);
+  const lotto = formatEuro(els.lottoAmount.value);
+  const eurojackpot = formatEuro(els.eurojackpotAmount.value);
+  els.text.value =
+    `JACKPOT TZOKER ${tzoker}€ | ΛΟΤΤΟ ${lotto}€ ΚΑΘΕ ΜΗΝΑ !!! | EUROJACKPOT ${eurojackpot}€`;
+  renderPreview();
 });
 
 els.mode.addEventListener('change', async () => {

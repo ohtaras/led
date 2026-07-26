@@ -54,6 +54,24 @@
       <div class="card">
         <h2>Text</h2>
         <div class="field">
+          <label>Jackpot amounts</label>
+          <div class="field-row">
+            <div class="field">
+              <label for="tzokerAmount">Τζόκερ (€)</label>
+              <input type="number" id="tzokerAmount" value="1000000" min="0" step="1" />
+            </div>
+            <div class="field">
+              <label for="lottoAmount">Λόττο / μήνα (€)</label>
+              <input type="number" id="lottoAmount" value="10000" min="0" step="1" />
+            </div>
+            <div class="field">
+              <label for="eurojackpotAmount">EuroJackpot (€)</label>
+              <input type="number" id="eurojackpotAmount" value="70000000" min="0" step="1" />
+            </div>
+          </div>
+          <button id="buildMessageBtn" class="secondary">Build message from amounts</button>
+        </div>
+        <div class="field">
           <label for="textInput">Message</label>
           <input type="text" id="textInput" value="HELLO WORLD" maxlength="255" />
         </div>
