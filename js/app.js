@@ -6,7 +6,6 @@ import {
   buildModePackets,
   buildPowerPackets,
   buildInvertDisplayPackets,
-  buildInitializePackets,
   buildTextPackets,
 } from './protocol.js';
 import { textToPixelBits, drawPreview } from './render.js';
@@ -148,7 +147,6 @@ attachSlider(els.brightness, els.brightnessVal, buildBrightnessPackets, 'Brightn
 
 els.powerOnBtn.addEventListener('click', async () => {
   await withBusy(async () => {
-    await client.sendPackets(buildInitializePackets(), { expectNotify: true });
     await client.sendPackets(buildPowerPackets(true), { expectNotify: true });
     log('Power on', 'success');
   });
