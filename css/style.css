@@ -201,6 +201,49 @@ input[type='range'] {
   color: var(--text-dim);
 }
 
+.hint {
+  margin: 0.75rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+#deviceList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.device-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+}
+
+.device-row input[type='checkbox'] {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--accent);
+}
+
+.device-row .device-name {
+  flex: 1;
+  font-size: 0.9rem;
+}
+
+.device-row .device-status {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+button.small {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+}
+
 #log {
   max-height: 220px;
   overflow-y: auto;
