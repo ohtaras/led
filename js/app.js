@@ -16,7 +16,6 @@ const els = {
   color: $('textColor'),
   bgColor: $('bgColor'),
   fontSize: $('fontSize'),
-  mode: $('modeSelect'),
   tzokerAmount: $('tzokerAmount'),
   lottoAmount: $('lottoAmount'),
   eurojackpotAmount: $('eurojackpotAmount'),
@@ -321,7 +320,10 @@ els.sendBtn.addEventListener('click', async () => {
       height,
     );
     const packets = buildTextPackets(messageText, pixelBits);
-    await runOnSelected((client) => client.sendPackets(packets, { expectNotify: true }), 'Send text');
+    await runOnSelected(async (client) => {
+      await client.sendPackets(buildModePackets(MODE.LEFT), { expectNotify: false });
+      await client.sendPackets(packets, { expectNotify: true });
+    }, 'Send text');
   });
 });
 
@@ -372,16 +374,6 @@ els.fetchOpapBtn.addEventListener('click', async () => {
   });
 });
 
-els.mode.addEventListener('change', async () => {
-  await withBusy(async () => {
-    const mode = MODE[els.mode.value];
-    await runOnSelected(
-      (client) => client.sendPackets(buildModePackets(mode), { expectNotify: false }),
-      `Mode set to ${els.mode.value}`,
-    );
-  });
-});
-
 [els.text, els.bgColor, els.fontSize, els.width, els.height].forEach((el) => {
   el.addEventListener('input', renderPreview);
 });
@@ -417,8 +409,7 @@ if (!navigator.bluetooth) {
   els.connectBtn.disabled = true;
 }
 
-setMessageText('HELLO WORLD');
 els.text.style.color = els.color.value;
+buildMessageFromAmounts();
 renderDeviceList();
-renderPreview();
 initKnownDevices();
