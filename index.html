@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LED Sign Control</title>
+  <title>OPPC LED Sign Control</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
   <header>
     <div>
-      <h1>LED Sign Control</h1>
+      <h1>OPPC LED Sign Control</h1>
       <p>Web Bluetooth control for CoolLEDX / CoolLED1248 flexible LED signs</p>
     </div>
     <div>
@@ -82,6 +82,15 @@
           <div class="field">
             <label for="textColor">Text color</label>
             <input type="color" id="textColor" value="#ff0000" />
+            <div id="colorPalette" class="palette-row">
+              <button type="button" class="swatch" data-color="#ff0000" style="background:#ff0000" title="Red"></button>
+              <button type="button" class="swatch" data-color="#ff00ff" style="background:#ff00ff" title="Magenta"></button>
+              <button type="button" class="swatch" data-color="#ffff00" style="background:#ffff00" title="Yellow"></button>
+              <button type="button" class="swatch" data-color="#00ff00" style="background:#00ff00" title="Green"></button>
+              <button type="button" class="swatch" data-color="#00ffff" style="background:#00ffff" title="Cyan"></button>
+              <button type="button" class="swatch" data-color="#0000ff" style="background:#0000ff" title="Blue"></button>
+              <button type="button" class="swatch" data-color="#ffffff" style="background:#ffffff" title="White"></button>
+            </div>
           </div>
           <div class="field">
             <label for="bgColor">Background color</label>

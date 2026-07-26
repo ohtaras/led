@@ -345,6 +345,13 @@ els.mode.addEventListener('change', async () => {
   el.addEventListener('input', renderPreview);
 });
 
+document.querySelectorAll('#colorPalette .swatch').forEach((swatch) => {
+  swatch.addEventListener('click', () => {
+    els.color.value = swatch.dataset.color;
+    renderPreview();
+  });
+});
+
 if (!navigator.bluetooth) {
   els.unsupported.hidden = false;
   els.connectBtn.disabled = true;
