@@ -99,10 +99,6 @@ function getMessageText() {
   return result;
 }
 
-function setMessageText(plainText) {
-  els.text.textContent = plainText;
-}
-
 function log(message, kind = 'info') {
   const line = document.createElement('div');
   line.className = `log-line log-${kind}`;
@@ -351,9 +347,25 @@ function buildMessageFromAmounts() {
   const tzoker = formatEuro(els.tzokerAmount.value);
   const lotto = formatEuro(els.lottoAmount.value);
   const eurojackpot = formatEuro(els.eurojackpotAmount.value);
-  setMessageText(
-    `JACKPOT TZOKER ${tzoker}€ – ΛΟΤΤΟ ${lotto}€ ΚΑΘΕ ΜΗΝΑ !!! – EUROJACKPOT ${eurojackpot}€`,
-  );
+
+  // Each part of the ticker gets its own color, matching the multi-color
+  // look of the original app's messages instead of one flat color.
+  const segments = [
+    { text: 'JACKPOT TZOKER ', color: '#ffffff' },
+    { text: `${tzoker}€ `, color: '#ff0000' },
+    { text: '– ΛΟΤΤΟ ', color: '#00ffff' },
+    { text: `${lotto}€ ΚΑΘΕ ΜΗΝΑ !!! `, color: '#ffff00' },
+    { text: '– EUROJACKPOT ', color: '#00ff00' },
+    { text: `${eurojackpot}€`, color: '#ff00ff' },
+  ];
+
+  els.text.innerHTML = '';
+  for (const seg of segments) {
+    const span = document.createElement('span');
+    span.style.color = seg.color;
+    span.textContent = seg.text;
+    els.text.appendChild(span);
+  }
   renderPreview();
 }
 
