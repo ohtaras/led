@@ -1,4 +1,4 @@
-import { CoolLedClient } from './ble.js';
+import { CoolLedClient, getKnownDevices } from './ble.js';
 import {
   MODE,
   buildSpeedPackets,
@@ -38,8 +38,10 @@ const els = {
   log: $('log'),
 };
 
-// Each connected sign is { client, selected }. Multiple signs can be
-// connected at once; "selected" controls whether an action applies to it.
+// Each known sign is { device, client, selected }. `device` is a
+// BluetoothDevice (from a prior grant or a fresh chooser pick); `client` is
+// null until actually connected. Multiple signs can be connected at once;
+// "selected" controls whether a bulk action applies to a connected one.
 const devices = [];
 
 // Custom nicknames per physical sign, persisted across sessions and keyed by
@@ -60,17 +62,17 @@ function saveLabels(labels) {
 
 const labels = loadLabels();
 
-function getLabel(client) {
-  return (client.deviceId && labels[client.deviceId]) || client.deviceName || 'Sign';
+function getLabel(device) {
+  return (device && device.id && labels[device.id]) || (device && device.name) || 'Sign';
 }
 
-function setLabel(client, label) {
-  if (!client.deviceId) return;
+function setLabel(device, label) {
+  if (!device || !device.id) return;
   const trimmed = label.trim();
   if (trimmed) {
-    labels[client.deviceId] = trimmed;
+    labels[device.id] = trimmed;
   } else {
-    delete labels[client.deviceId];
+    delete labels[device.id];
   }
   saveLabels(labels);
 }
@@ -83,12 +85,41 @@ function log(message, kind = 'info') {
   els.log.prepend(line);
 }
 
+async function withBusy(fn) {
+  els.panel.classList.add('busy');
+  try {
+    await fn();
+  } catch (err) {
+    log(err.message, 'error');
+  } finally {
+    els.panel.classList.remove('busy');
+  }
+}
+
+async function connectDevice(dev) {
+  await withBusy(async () => {
+    if (!dev.client) {
+      dev.client = new CoolLedClient(dev.device);
+      dev.client.addEventListener('connected', () => {
+        log(`Connected to ${getLabel(dev.device)}`, 'success');
+        renderDeviceList();
+      });
+      dev.client.addEventListener('disconnected', () => {
+        log(`${getLabel(dev.device)} disconnected`, 'error');
+        renderDeviceList();
+      });
+    }
+    await dev.client.connect();
+    renderDeviceList();
+  });
+}
+
 function renderDeviceList() {
   els.deviceList.innerHTML = '';
   if (devices.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'hint';
-    empty.textContent = 'No signs connected yet.';
+    empty.textContent = 'No signs yet. Click "+ Add sign" (top right) to grant access to one.';
     els.deviceList.appendChild(empty);
   }
   for (const dev of devices) {
@@ -105,33 +136,50 @@ function renderDeviceList() {
     const name = document.createElement('input');
     name.type = 'text';
     name.className = 'device-name';
-    name.value = getLabel(dev.client);
-    name.title = `Bluetooth name: ${dev.client.deviceName || 'unknown'}`;
+    name.value = getLabel(dev.device);
+    name.title = `Bluetooth name: ${dev.device.name || 'unknown'}`;
     name.addEventListener('change', () => {
-      setLabel(dev.client, name.value);
+      setLabel(dev.device, name.value);
       renderDeviceList();
     });
 
+    const isConnected = !!(dev.client && dev.client.connected);
+
     const status = document.createElement('span');
     status.className = 'device-status';
-    status.textContent = dev.client.connected ? 'connected' : 'disconnected';
+    status.textContent = isConnected ? 'connected' : 'available';
 
-    const disconnectBtn = document.createElement('button');
-    disconnectBtn.className = 'secondary small';
-    disconnectBtn.textContent = 'Disconnect';
-    disconnectBtn.addEventListener('click', () => dev.client.disconnect());
+    const actionBtn = document.createElement('button');
+    actionBtn.className = 'secondary small';
+    if (isConnected) {
+      actionBtn.textContent = 'Disconnect';
+      actionBtn.addEventListener('click', () => dev.client.disconnect());
+    } else {
+      actionBtn.textContent = 'Connect';
+      actionBtn.addEventListener('click', () => connectDevice(dev));
+    }
 
-    row.append(checkbox, name, status, disconnectBtn);
+    row.append(checkbox, name, status, actionBtn);
     els.deviceList.appendChild(row);
   }
 
-  const connectedCount = devices.filter((d) => d.client.connected).length;
+  const connectedCount = devices.filter((d) => d.client && d.client.connected).length;
   els.status.textContent = connectedCount > 0 ? `${connectedCount} sign(s) connected` : '';
   els.panel.classList.toggle('disabled', connectedCount === 0);
 }
 
+async function initKnownDevices() {
+  const known = await getKnownDevices();
+  for (const device of known) {
+    if (!devices.some((d) => d.device.id === device.id)) {
+      devices.push({ device, client: null, selected: true });
+    }
+  }
+  renderDeviceList();
+}
+
 function selectedClients() {
-  return devices.filter((d) => d.selected && d.client.connected).map((d) => d.client);
+  return devices.filter((d) => d.selected && d.client && d.client.connected).map((d) => d.client);
 }
 
 function renderPreview() {
@@ -155,35 +203,33 @@ function renderPreview() {
   }
 }
 
-async function withBusy(fn) {
-  els.panel.classList.add('busy');
-  try {
-    await fn();
-  } catch (err) {
-    log(err.message, 'error');
-  } finally {
-    els.panel.classList.remove('busy');
-  }
-}
-
-/** Run `action` on every selected, connected sign in parallel. */
+/**
+ * Run `action` on every selected, connected sign, one at a time. Some
+ * Bluetooth stacks (notably on Windows) throw "GATT operation already in
+ * progress" when two peripherals are written to concurrently, even though
+ * they're on separate connections, so signs are handled sequentially rather
+ * than in parallel.
+ */
 async function runOnSelected(action, actionName) {
   const targets = selectedClients();
   if (targets.length === 0) {
     log('No signs selected.', 'error');
     return;
   }
-  const results = await Promise.allSettled(targets.map((client) => action(client)));
   const failures = [];
-  results.forEach((r, i) => {
-    if (r.status === 'rejected') failures.push({ client: targets[i], reason: r.reason });
-  });
+  for (const client of targets) {
+    try {
+      await action(client);
+    } catch (reason) {
+      failures.push({ client, reason });
+    }
+  }
   const okCount = targets.length - failures.length;
   if (failures.length === 0) {
     log(`${actionName}: done on ${okCount} sign(s).`, 'success');
   } else {
     log(`${actionName}: ${okCount} succeeded, ${failures.length} failed.`, 'error');
-    failures.forEach(({ client, reason }) => log(`${getLabel(client)}: ${reason.message}`, 'error'));
+    failures.forEach(({ client, reason }) => log(`${getLabel(client.device)}: ${reason.message}`, 'error'));
   }
 }
 
@@ -191,17 +237,23 @@ els.connectBtn.addEventListener('click', async () => {
   await withBusy(async () => {
     log('Requesting Bluetooth device...');
     const client = new CoolLedClient();
-    const dev = { client, selected: true };
     client.addEventListener('connected', () => {
-      log(`Connected to ${getLabel(client)}`, 'success');
+      log(`Connected to ${getLabel(client.device)}`, 'success');
       renderDeviceList();
     });
     client.addEventListener('disconnected', () => {
-      log(`${getLabel(client)} disconnected`, 'error');
+      log(`${getLabel(client.device)} disconnected`, 'error');
       renderDeviceList();
     });
     await client.connect();
-    devices.push(dev);
+
+    let dev = devices.find((d) => d.device.id === client.device.id);
+    if (dev) {
+      dev.client = client;
+    } else {
+      dev = { device: client.device, client, selected: true };
+      devices.push(dev);
+    }
     renderDeviceList();
   });
 });
@@ -287,7 +339,7 @@ els.identifyBtn.addEventListener('click', async () => {
     };
 
     await runOnSelected(async (client) => {
-      const name = getLabel(client);
+      const name = getLabel(client.device);
       const namePackets = buildTextPackets(name, textToPixelBits(name, idOptions, height).pixelBits);
       const blankPackets = buildTextPackets(' ', textToPixelBits(' ', idOptions, height).pixelBits);
 
@@ -312,3 +364,4 @@ if (!navigator.bluetooth) {
 
 renderDeviceList();
 renderPreview();
+initKnownDevices();

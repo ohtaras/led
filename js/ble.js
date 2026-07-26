@@ -1,15 +1,33 @@
 import { SERVICE_UUID, CHARACTERISTIC_UUID } from './protocol.js';
 
 /**
+ * List Bluetooth devices this page has previously been granted permission
+ * to access (Web Bluetooth "persistent permissions"), so they can be
+ * reconnected without showing the chooser dialog again. Returns [] if the
+ * browser doesn't support this (e.g. Firefox/Safari, or no prior grants).
+ */
+export async function getKnownDevices() {
+  if (!navigator.bluetooth || !navigator.bluetooth.getDevices) {
+    return [];
+  }
+  return navigator.bluetooth.getDevices();
+}
+
+/**
  * Manages the Web Bluetooth connection to a CoolLEDX sign and serializes
  * writes to its single write/notify characteristic, mirroring the reference
  * driver's behavior of waiting for the device's notification before sending
  * the next chunk of a multi-chunk transfer.
  */
 export class CoolLedClient extends EventTarget {
-  constructor() {
+  /**
+   * `device`, when given, is an already-permitted BluetoothDevice (e.g. from
+   * navigator.bluetooth.getDevices()) to connect straight to, skipping the
+   * chooser dialog. Omit it to prompt the user to pick a new device.
+   */
+  constructor(device = null) {
     super();
-    this.device = null;
+    this.device = device;
     this.characteristic = null;
     this._notifyResolve = null;
   }
@@ -30,10 +48,12 @@ export class CoolLedClient extends EventTarget {
     if (!navigator.bluetooth) {
       throw new Error('Web Bluetooth is not available in this browser.');
     }
-    this.device = await navigator.bluetooth.requestDevice({
-      filters: [{ namePrefix: 'CoolLED' }],
-      optionalServices: [SERVICE_UUID],
-    });
+    if (!this.device) {
+      this.device = await navigator.bluetooth.requestDevice({
+        filters: [{ namePrefix: 'CoolLED' }],
+        optionalServices: [SERVICE_UUID],
+      });
+    }
     this.device.addEventListener('gattserverdisconnected', () => this._onDisconnect());
 
     const server = await this.device.gatt.connect();
