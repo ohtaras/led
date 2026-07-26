@@ -27,7 +27,7 @@ export class CoolLedClient extends EventTarget {
       throw new Error('Web Bluetooth is not available in this browser.');
     }
     this.device = await navigator.bluetooth.requestDevice({
-      acceptAllDevices: true,
+      filters: [{ namePrefix: 'CoolLED' }],
       optionalServices: [SERVICE_UUID],
     });
     this.device.addEventListener('gattserverdisconnected', () => this._onDisconnect());
