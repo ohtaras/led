@@ -13,7 +13,7 @@
       <p>Web Bluetooth control for CoolLEDX / CoolLED1248 flexible LED signs</p>
     </div>
     <div>
-      <button id="connectBtn">Connect to sign</button>
+      <button id="connectBtn">+ Add sign</button>
       <div id="status"></div>
     </div>
   </header>
@@ -23,6 +23,15 @@
       Your browser doesn't support Web Bluetooth. Open this page in
       <strong>Chrome</strong> or <strong>Edge</strong> on a desktop computer, served over
       <strong>HTTPS or localhost</strong> (Web Bluetooth requires a secure context).
+    </div>
+
+    <div class="card">
+      <h2>Connected signs</h2>
+      <div id="deviceList"></div>
+      <p class="hint">
+        Click "+ Add sign" (top right) to connect a sign — click it again to connect more at
+        once. Untick a sign below to leave it out of the next action.
+      </p>
     </div>
 
     <div id="controlPanel" class="disabled">

@@ -17,6 +17,7 @@ const els = {
   status: $('status'),
   panel: $('controlPanel'),
   unsupported: $('unsupported'),
+  deviceList: $('deviceList'),
   width: $('deviceWidth'),
   height: $('deviceHeight'),
   text: $('textInput'),
@@ -37,7 +38,9 @@ const els = {
   log: $('log'),
 };
 
-const client = new CoolLedClient();
+// Each connected sign is { client, selected }. Multiple signs can be
+// connected at once; "selected" controls whether an action applies to it.
+const devices = [];
 
 function log(message, kind = 'info') {
   const line = document.createElement('div');
@@ -47,9 +50,49 @@ function log(message, kind = 'info') {
   els.log.prepend(line);
 }
 
-function setConnectedUi(connected) {
-  els.panel.classList.toggle('disabled', !connected);
-  els.connectBtn.textContent = connected ? `Disconnect (${client.deviceName || 'sign'})` : 'Connect to sign';
+function renderDeviceList() {
+  els.deviceList.innerHTML = '';
+  if (devices.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'hint';
+    empty.textContent = 'No signs connected yet.';
+    els.deviceList.appendChild(empty);
+  }
+  for (const dev of devices) {
+    const row = document.createElement('div');
+    row.className = 'device-row';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = dev.selected;
+    checkbox.addEventListener('change', () => {
+      dev.selected = checkbox.checked;
+    });
+
+    const name = document.createElement('span');
+    name.className = 'device-name';
+    name.textContent = dev.client.deviceName || 'Sign';
+
+    const status = document.createElement('span');
+    status.className = 'device-status';
+    status.textContent = dev.client.connected ? 'connected' : 'disconnected';
+
+    const disconnectBtn = document.createElement('button');
+    disconnectBtn.className = 'secondary small';
+    disconnectBtn.textContent = 'Disconnect';
+    disconnectBtn.addEventListener('click', () => dev.client.disconnect());
+
+    row.append(checkbox, name, status, disconnectBtn);
+    els.deviceList.appendChild(row);
+  }
+
+  const connectedCount = devices.filter((d) => d.client.connected).length;
+  els.status.textContent = connectedCount > 0 ? `${connectedCount} sign(s) connected` : '';
+  els.panel.classList.toggle('disabled', connectedCount === 0);
+}
+
+function selectedClients() {
+  return devices.filter((d) => d.selected && d.client.connected).map((d) => d.client);
 }
 
 function renderPreview() {
@@ -84,22 +127,41 @@ async function withBusy(fn) {
   }
 }
 
-els.connectBtn.addEventListener('click', async () => {
-  if (client.connected) {
-    client.disconnect();
+/** Run `action` on every selected, connected sign in parallel. */
+async function runOnSelected(action, actionName) {
+  const targets = selectedClients();
+  if (targets.length === 0) {
+    log('No signs selected.', 'error');
     return;
   }
+  const results = await Promise.allSettled(targets.map((client) => action(client)));
+  const failures = results.filter((r) => r.status === 'rejected');
+  const okCount = targets.length - failures.length;
+  if (failures.length === 0) {
+    log(`${actionName}: done on ${okCount} sign(s).`, 'success');
+  } else {
+    log(`${actionName}: ${okCount} succeeded, ${failures.length} failed.`, 'error');
+    failures.forEach((r) => log(r.reason.message, 'error'));
+  }
+}
+
+els.connectBtn.addEventListener('click', async () => {
   await withBusy(async () => {
     log('Requesting Bluetooth device...');
+    const client = new CoolLedClient();
+    const dev = { client, selected: true };
+    client.addEventListener('connected', () => {
+      log(`Connected to ${client.deviceName}`, 'success');
+      renderDeviceList();
+    });
+    client.addEventListener('disconnected', () => {
+      log(`${client.deviceName || 'Sign'} disconnected`, 'error');
+      renderDeviceList();
+    });
     await client.connect();
-    log(`Connected to ${client.deviceName}`, 'success');
+    devices.push(dev);
+    renderDeviceList();
   });
-});
-
-client.addEventListener('connected', () => setConnectedUi(true));
-client.addEventListener('disconnected', () => {
-  setConnectedUi(false);
-  log('Disconnected', 'error');
 });
 
 els.sendBtn.addEventListener('click', async () => {
@@ -116,17 +178,17 @@ els.sendBtn.addEventListener('click', async () => {
       height,
     );
     const packets = buildTextPackets(els.text.value, pixelBits);
-    log(`Sending text (${packets.length} chunk${packets.length === 1 ? '' : 's'})...`);
-    await client.sendPackets(packets, { expectNotify: true });
-    log('Text sent.', 'success');
+    await runOnSelected((client) => client.sendPackets(packets, { expectNotify: true }), 'Send text');
   });
 });
 
 els.mode.addEventListener('change', async () => {
   await withBusy(async () => {
     const mode = MODE[els.mode.value];
-    await client.sendPackets(buildModePackets(mode), { expectNotify: false });
-    log(`Mode set to ${els.mode.value}`);
+    await runOnSelected(
+      (client) => client.sendPackets(buildModePackets(mode), { expectNotify: false }),
+      `Mode set to ${els.mode.value}`,
+    );
   });
 });
 
@@ -136,8 +198,10 @@ function attachSlider(slider, label, build, name) {
   });
   slider.addEventListener('change', async () => {
     await withBusy(async () => {
-      await client.sendPackets(build(parseInt(slider.value, 10)), { expectNotify: false });
-      log(`${name} set to ${slider.value}`);
+      await runOnSelected(
+        (client) => client.sendPackets(build(parseInt(slider.value, 10)), { expectNotify: false }),
+        `${name} set to ${slider.value}`,
+      );
     });
   });
 }
@@ -147,15 +211,13 @@ attachSlider(els.brightness, els.brightnessVal, buildBrightnessPackets, 'Brightn
 
 els.powerOnBtn.addEventListener('click', async () => {
   await withBusy(async () => {
-    await client.sendPackets(buildPowerPackets(true), { expectNotify: true });
-    log('Power on', 'success');
+    await runOnSelected((client) => client.sendPackets(buildPowerPackets(true), { expectNotify: true }), 'Power on');
   });
 });
 
 els.powerOffBtn.addEventListener('click', async () => {
   await withBusy(async () => {
-    await client.sendPackets(buildPowerPackets(false), { expectNotify: true });
-    log('Power off');
+    await runOnSelected((client) => client.sendPackets(buildPowerPackets(false), { expectNotify: true }), 'Power off');
   });
 });
 
@@ -163,8 +225,10 @@ let inverted = false;
 els.invertBtn.addEventListener('click', async () => {
   await withBusy(async () => {
     inverted = !inverted;
-    await client.sendPackets(buildInvertDisplayPackets(inverted), { expectNotify: false });
-    log(`Display inverted: ${inverted}`);
+    await runOnSelected(
+      (client) => client.sendPackets(buildInvertDisplayPackets(inverted), { expectNotify: false }),
+      `Display inverted: ${inverted}`,
+    );
   });
 });
 
@@ -172,7 +236,6 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 els.identifyBtn.addEventListener('click', async () => {
   await withBusy(async () => {
-    const name = client.deviceName || 'LED';
     const height = parseInt(els.height.value, 10);
     const idOptions = {
       color: '#ffffff',
@@ -181,18 +244,18 @@ els.identifyBtn.addEventListener('click', async () => {
       fontPx: parseInt(els.fontSize.value, 10),
     };
 
-    await client.sendPackets(buildModePackets(MODE.STATIC), { expectNotify: false });
+    await runOnSelected(async (client) => {
+      const name = client.deviceName || 'LED';
+      const namePackets = buildTextPackets(name, textToPixelBits(name, idOptions, height).pixelBits);
+      const blankPackets = buildTextPackets(' ', textToPixelBits(' ', idOptions, height).pixelBits);
 
-    const namePackets = buildTextPackets(name, textToPixelBits(name, idOptions, height).pixelBits);
-    const blankPackets = buildTextPackets(' ', textToPixelBits(' ', idOptions, height).pixelBits);
-
-    log(`Flashing "${name}" on the sign so you can spot it...`);
-    for (let i = 0; i < 6; i++) {
-      await client.sendPackets(i % 2 === 0 ? namePackets : blankPackets, { expectNotify: true });
-      await delay(400);
-    }
-    await client.sendPackets(namePackets, { expectNotify: true });
-    log(`Identify done: "${name}" is shown on the sign.`, 'success');
+      await client.sendPackets(buildModePackets(MODE.STATIC), { expectNotify: false });
+      for (let i = 0; i < 6; i++) {
+        await client.sendPackets(i % 2 === 0 ? namePackets : blankPackets, { expectNotify: true });
+        await delay(400);
+      }
+      await client.sendPackets(namePackets, { expectNotify: true });
+    }, 'Identify');
   });
 });
 
@@ -205,5 +268,5 @@ if (!navigator.bluetooth) {
   els.connectBtn.disabled = true;
 }
 
-setConnectedUi(false);
+renderDeviceList();
 renderPreview();
