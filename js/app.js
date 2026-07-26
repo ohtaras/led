@@ -20,6 +20,7 @@ const els = {
   tzokerAmount: $('tzokerAmount'),
   lottoAmount: $('lottoAmount'),
   eurojackpotAmount: $('eurojackpotAmount'),
+  fetchOpapBtn: $('fetchOpapBtn'),
   buildMessageBtn: $('buildMessageBtn'),
   sendBtn: $('sendBtn'),
   preview: $('preview'),
@@ -288,6 +289,38 @@ els.sendBtn.addEventListener('click', async () => {
 function formatEuro(value) {
   return Number(value || 0).toLocaleString('el-GR');
 }
+
+// OPAP's public "active draw" endpoint, keyed by their internal game id.
+// prizeCategories[0] is the jackpot category; the advertised amount is
+// whichever is larger of the currently accumulated pool ("jackpot") and the
+// guaranteed minimum for the next draw ("minimumDistributed").
+const OPAP_GAME_IDS = { tzoker: 5104, eurojackpot: 5149 };
+
+async function fetchOpapJackpot(gameId) {
+  const res = await fetch(`https://api.opap.gr/draws/v3.0/${gameId}/active`);
+  if (!res.ok) {
+    throw new Error(`OPAP request failed: HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  const category = data.prizeCategories.find((c) => c.categoryType === 0) || data.prizeCategories[0];
+  return Math.max(category.jackpot || 0, category.minimumDistributed || 0);
+}
+
+els.fetchOpapBtn.addEventListener('click', async () => {
+  await withBusy(async () => {
+    try {
+      const [tzoker, eurojackpot] = await Promise.all([
+        fetchOpapJackpot(OPAP_GAME_IDS.tzoker),
+        fetchOpapJackpot(OPAP_GAME_IDS.eurojackpot),
+      ]);
+      els.tzokerAmount.value = Math.round(tzoker);
+      els.eurojackpotAmount.value = Math.round(eurojackpot);
+      log(`Fetched from OPAP: Τζόκερ ${formatEuro(tzoker)}€, EuroJackpot ${formatEuro(eurojackpot)}€`, 'success');
+    } catch (err) {
+      log(`OPAP fetch failed (${err.message}) — enter amounts manually instead.`, 'error');
+    }
+  });
+});
 
 els.buildMessageBtn.addEventListener('click', () => {
   const tzoker = formatEuro(els.tzokerAmount.value);
