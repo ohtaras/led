@@ -347,7 +347,30 @@ els.mode.addEventListener('change', async () => {
 
 document.querySelectorAll('#colorPalette .swatch').forEach((swatch) => {
   swatch.addEventListener('click', () => {
-    els.color.value = swatch.dataset.color;
+    const input = els.text;
+    const color = swatch.dataset.color;
+    const start = input.selectionStart ?? input.value.length;
+    const end = input.selectionEnd ?? input.value.length;
+    const before = input.value.slice(0, start);
+    const selected = input.value.slice(start, end);
+    const after = input.value.slice(end);
+    const baseColor = els.color.value;
+
+    // No selection: just start a new color run from the cursor onward.
+    // A selection: wrap just that part in the color, reverting to the
+    // current base color afterward if there's more text following it.
+    const inserted =
+      selected.length > 0
+        ? after.length > 0
+          ? `<${color}>${selected}<${baseColor}>`
+          : `<${color}>${selected}`
+        : `<${color}>`;
+
+    input.value = before + inserted + after;
+    const cursorPos = before.length + inserted.length;
+    input.setSelectionRange(cursorPos, cursorPos);
+    input.focus();
+    els.color.value = color;
     renderPreview();
   });
 });
