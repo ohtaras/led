@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LED Sign Control</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header>
+    <div>
+      <h1>LED Sign Control</h1>
+      <p>Web Bluetooth control for CoolLEDX / CoolLED1248 flexible LED signs</p>
+    </div>
+    <div>
+      <button id="connectBtn">Connect to sign</button>
+      <div id="status"></div>
+    </div>
+  </header>
+
+  <main>
+    <div id="unsupported" class="banner" hidden>
+      Your browser doesn't support Web Bluetooth. Open this page in
+      <strong>Chrome</strong> or <strong>Edge</strong> on a desktop computer, served over
+      <strong>HTTPS or localhost</strong> (Web Bluetooth requires a secure context).
+    </div>
+
+    <div id="controlPanel" class="disabled">
+      <div class="card">
+        <h2>Device</h2>
+        <div class="field-row">
+          <div class="field">
+            <label for="deviceWidth">Width (px)</label>
+            <input type="number" id="deviceWidth" value="64" min="8" step="1" />
+          </div>
+          <div class="field">
+            <label for="deviceHeight">Height (px, multiple of 8)</label>
+            <input type="number" id="deviceHeight" value="16" min="8" step="8" />
+          </div>
+        </div>
+        <div class="button-row">
+          <button id="powerOnBtn" class="secondary">Power on</button>
+          <button id="powerOffBtn" class="secondary">Power off</button>
+          <button id="invertBtn" class="secondary">Flip display</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Text</h2>
+        <div class="field">
+          <label for="textInput">Message</label>
+          <input type="text" id="textInput" value="HELLO WORLD" maxlength="255" />
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="textColor">Text color</label>
+            <input type="color" id="textColor" value="#ff0000" />
+          </div>
+          <div class="field">
+            <label for="bgColor">Background color</label>
+            <input type="color" id="bgColor" value="#000000" />
+          </div>
+          <div class="field">
+            <label for="fontSize">Font size (px)</label>
+            <input type="number" id="fontSize" value="13" min="6" max="64" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="modeSelect">Display mode</label>
+          <select id="modeSelect">
+            <option value="STATIC">Static</option>
+            <option value="LEFT" selected>Scroll left</option>
+            <option value="RIGHT">Scroll right</option>
+            <option value="UP">Scroll up</option>
+            <option value="DOWN">Scroll down</option>
+            <option value="SNOWFLAKE">Snowflake</option>
+            <option value="PICTURE">Picture</option>
+            <option value="LASER">Laser</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="speedSlider">Speed</label>
+          <div class="slider-row">
+            <input type="range" id="speedSlider" min="0" max="255" value="128" />
+            <span id="speedVal">128</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="brightnessSlider">Brightness</label>
+          <div class="slider-row">
+            <input type="range" id="brightnessSlider" min="0" max="255" value="128" />
+            <span id="brightnessVal">128</span>
+          </div>
+        </div>
+        <button id="sendBtn">Send to sign</button>
+      </div>
+
+      <div class="card">
+        <h2>Preview</h2>
+        <div class="preview-wrap">
+          <canvas id="preview"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Activity log</h2>
+        <div id="log"></div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
