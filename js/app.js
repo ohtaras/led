@@ -33,6 +33,7 @@ const els = {
   powerOnBtn: $('powerOnBtn'),
   powerOffBtn: $('powerOffBtn'),
   invertBtn: $('invertBtn'),
+  identifyBtn: $('identifyBtn'),
   preview: $('preview'),
   log: $('log'),
 };
@@ -166,6 +167,34 @@ els.invertBtn.addEventListener('click', async () => {
     inverted = !inverted;
     await client.sendPackets(buildInvertDisplayPackets(inverted), { expectNotify: false });
     log(`Display inverted: ${inverted}`);
+  });
+});
+
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+els.identifyBtn.addEventListener('click', async () => {
+  await withBusy(async () => {
+    const name = client.deviceName || 'LED';
+    const height = parseInt(els.height.value, 10);
+    const idOptions = {
+      color: '#ffffff',
+      backgroundColor: '#000000',
+      fontFamily: 'sans-serif',
+      fontPx: parseInt(els.fontSize.value, 10),
+    };
+
+    await client.sendPackets(buildModePackets(MODE.STATIC), { expectNotify: false });
+
+    const namePackets = buildTextPackets(name, textToPixelBits(name, idOptions, height).pixelBits);
+    const blankPackets = buildTextPackets(' ', textToPixelBits(' ', idOptions, height).pixelBits);
+
+    log(`Flashing "${name}" on the sign so you can spot it...`);
+    for (let i = 0; i < 6; i++) {
+      await client.sendPackets(i % 2 === 0 ? namePackets : blankPackets, { expectNotify: true });
+      await delay(400);
+    }
+    await client.sendPackets(namePackets, { expectNotify: true });
+    log(`Identify done: "${name}" is shown on the sign.`, 'success');
   });
 });
 
