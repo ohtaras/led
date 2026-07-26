@@ -166,18 +166,27 @@ async function withBusy(fn) {
   }
 }
 
-/** Run `action` on every selected, connected sign in parallel. */
+/**
+ * Run `action` on every selected, connected sign, one at a time. Some
+ * Bluetooth stacks (notably on Windows) throw "GATT operation already in
+ * progress" when two peripherals are written to concurrently, even though
+ * they're on separate connections, so signs are handled sequentially rather
+ * than in parallel.
+ */
 async function runOnSelected(action, actionName) {
   const targets = selectedClients();
   if (targets.length === 0) {
     log('No signs selected.', 'error');
     return;
   }
-  const results = await Promise.allSettled(targets.map((client) => action(client)));
   const failures = [];
-  results.forEach((r, i) => {
-    if (r.status === 'rejected') failures.push({ client: targets[i], reason: r.reason });
-  });
+  for (const client of targets) {
+    try {
+      await action(client);
+    } catch (reason) {
+      failures.push({ client, reason });
+    }
+  }
   const okCount = targets.length - failures.length;
   if (failures.length === 0) {
     log(`${actionName}: done on ${okCount} sign(s).`, 'success');
