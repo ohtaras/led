@@ -294,7 +294,7 @@ els.buildMessageBtn.addEventListener('click', () => {
   const lotto = formatEuro(els.lottoAmount.value);
   const eurojackpot = formatEuro(els.eurojackpotAmount.value);
   els.text.value =
-    `JACKPOT TZOKER ${tzoker}€ | ΛΟΤΤΟ ${lotto}€ ΚΑΘΕ ΜΗΝΑ !!! | EUROJACKPOT ${eurojackpot}€`;
+    `JACKPOT TZOKER ${tzoker}€ – ΛΟΤΤΟ ${lotto}€ ΚΑΘΕ ΜΗΝΑ !!! – EUROJACKPOT ${eurojackpot}€`;
   renderPreview();
 });
 
