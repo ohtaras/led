@@ -21,7 +21,6 @@ const els = {
   lottoAmount: $('lottoAmount'),
   eurojackpotAmount: $('eurojackpotAmount'),
   fetchOpapBtn: $('fetchOpapBtn'),
-  buildMessageBtn: $('buildMessageBtn'),
   sendBtn: $('sendBtn'),
   preview: $('preview'),
   log: $('log'),
@@ -64,6 +63,45 @@ function setLabel(device, label) {
     delete labels[device.id];
   }
   saveLabels(labels);
+}
+
+// The Message field is a contenteditable div so the user sees actual colored
+// letters instead of raw <#rrggbb> markup. This walks its DOM to derive the
+// marker string render.js/protocol.js expect, grouping consecutive text
+// nodes that share a color under a single marker.
+function rgbToHex(rgbString) {
+  const m = rgbString.match(/\d+/g);
+  if (!m) return '#ffffff';
+  const [r, g, b] = m.map(Number);
+  return `#${[r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('')}`;
+}
+
+function getMessageText() {
+  let result = '';
+  let lastColor = null;
+  function walk(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      if (node.textContent.length === 0) return;
+      const color = rgbToHex(getComputedStyle(node.parentElement).color);
+      if (color !== lastColor) {
+        result += `<${color}>`;
+        lastColor = color;
+      }
+      result += node.textContent;
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      if (node.tagName === 'BR') {
+        result += ' ';
+        return;
+      }
+      node.childNodes.forEach(walk);
+    }
+  }
+  walk(els.text);
+  return result;
+}
+
+function setMessageText(plainText) {
+  els.text.textContent = plainText;
 }
 
 function log(message, kind = 'info') {
@@ -198,7 +236,7 @@ function renderPreview() {
   try {
     drawPreview(
       els.preview,
-      els.text.value,
+      getMessageText(),
       {
         color: els.color.value,
         backgroundColor: els.bgColor.value,
@@ -271,8 +309,9 @@ els.connectBtn.addEventListener('click', async () => {
 els.sendBtn.addEventListener('click', async () => {
   await withBusy(async () => {
     const height = parseInt(els.height.value, 10);
+    const messageText = getMessageText();
     const { pixelBits } = textToPixelBits(
-      els.text.value,
+      messageText,
       {
         color: els.color.value,
         backgroundColor: els.bgColor.value,
@@ -281,7 +320,7 @@ els.sendBtn.addEventListener('click', async () => {
       },
       height,
     );
-    const packets = buildTextPackets(els.text.value, pixelBits);
+    const packets = buildTextPackets(messageText, pixelBits);
     await runOnSelected((client) => client.sendPackets(packets, { expectNotify: true }), 'Send text');
   });
 });
@@ -306,6 +345,16 @@ async function fetchOpapJackpot(gameId) {
   return Math.max(category.jackpot || 0, category.minimumDistributed || 0);
 }
 
+function buildMessageFromAmounts() {
+  const tzoker = formatEuro(els.tzokerAmount.value);
+  const lotto = formatEuro(els.lottoAmount.value);
+  const eurojackpot = formatEuro(els.eurojackpotAmount.value);
+  setMessageText(
+    `JACKPOT TZOKER ${tzoker}€ – ΛΟΤΤΟ ${lotto}€ ΚΑΘΕ ΜΗΝΑ !!! – EUROJACKPOT ${eurojackpot}€`,
+  );
+  renderPreview();
+}
+
 els.fetchOpapBtn.addEventListener('click', async () => {
   await withBusy(async () => {
     try {
@@ -317,18 +366,10 @@ els.fetchOpapBtn.addEventListener('click', async () => {
       els.eurojackpotAmount.value = Math.round(eurojackpot);
       log(`Fetched from OPAP: Τζόκερ ${formatEuro(tzoker)}€, EuroJackpot ${formatEuro(eurojackpot)}€`, 'success');
     } catch (err) {
-      log(`OPAP fetch failed (${err.message}) — enter amounts manually instead.`, 'error');
+      log(`OPAP fetch failed (${err.message}) — using current amounts instead.`, 'error');
     }
+    buildMessageFromAmounts();
   });
-});
-
-els.buildMessageBtn.addEventListener('click', () => {
-  const tzoker = formatEuro(els.tzokerAmount.value);
-  const lotto = formatEuro(els.lottoAmount.value);
-  const eurojackpot = formatEuro(els.eurojackpotAmount.value);
-  els.text.value =
-    `JACKPOT TZOKER ${tzoker}€ – ΛΟΤΤΟ ${lotto}€ ΚΑΘΕ ΜΗΝΑ !!! – EUROJACKPOT ${eurojackpot}€`;
-  renderPreview();
 });
 
 els.mode.addEventListener('change', async () => {
@@ -341,35 +382,31 @@ els.mode.addEventListener('change', async () => {
   });
 });
 
-[els.text, els.color, els.bgColor, els.fontSize, els.width, els.height].forEach((el) => {
+[els.text, els.bgColor, els.fontSize, els.width, els.height].forEach((el) => {
   el.addEventListener('input', renderPreview);
 });
 
+els.text.addEventListener('keydown', (e) => {
+  // The sign renders everything as one line; block Enter from creating a
+  // visual line break that the marker walk would just turn into a space.
+  if (e.key === 'Enter') e.preventDefault();
+});
+
+els.color.addEventListener('input', () => {
+  els.text.style.color = els.color.value;
+  renderPreview();
+});
+
 document.querySelectorAll('#colorPalette .swatch').forEach((swatch) => {
+  // Prevent the button from stealing focus on mousedown, which would
+  // collapse whatever text selection the user just made in the message
+  // field before the click handler below gets to see it.
+  swatch.addEventListener('mousedown', (e) => e.preventDefault());
   swatch.addEventListener('click', () => {
-    const input = els.text;
     const color = swatch.dataset.color;
-    const start = input.selectionStart ?? input.value.length;
-    const end = input.selectionEnd ?? input.value.length;
-    const before = input.value.slice(0, start);
-    const selected = input.value.slice(start, end);
-    const after = input.value.slice(end);
-    const baseColor = els.color.value;
-
-    // No selection: just start a new color run from the cursor onward.
-    // A selection: wrap just that part in the color, reverting to the
-    // current base color afterward if there's more text following it.
-    const inserted =
-      selected.length > 0
-        ? after.length > 0
-          ? `<${color}>${selected}<${baseColor}>`
-          : `<${color}>${selected}`
-        : `<${color}>`;
-
-    input.value = before + inserted + after;
-    const cursorPos = before.length + inserted.length;
-    input.setSelectionRange(cursorPos, cursorPos);
-    input.focus();
+    els.text.focus();
+    document.execCommand('styleWithCSS', false, true);
+    document.execCommand('foreColor', false, color);
     els.color.value = color;
     renderPreview();
   });
@@ -380,6 +417,8 @@ if (!navigator.bluetooth) {
   els.connectBtn.disabled = true;
 }
 
+setMessageText('HELLO WORLD');
+els.text.style.color = els.color.value;
 renderDeviceList();
 renderPreview();
 initKnownDevices();
