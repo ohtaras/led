@@ -149,6 +149,25 @@ input[type='color'] {
   padding: 2px;
 }
 
+.palette-row {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.swatch {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  padding: 0;
+  cursor: pointer;
+}
+
+.swatch:hover {
+  border-color: var(--accent);
+}
+
 input[type='range'] {
   width: 100%;
   accent-color: var(--accent);
