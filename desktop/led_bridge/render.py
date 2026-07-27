@@ -65,6 +65,7 @@ def text_to_pixel_bits(
 
     safe_text = text if len(text) > 0 else " "
     segments = parse_color_segments(safe_text)
+    plain_text = "".join(seg["text"] for seg in segments) or " "
 
     font = _font(font_px)
     total_width = 0.0
@@ -75,14 +76,23 @@ def text_to_pixel_bits(
 
     padding = 1
     canvas_width = text_width + padding * 2
-    canvas_height = max(output_height, math.ceil(font_px * 1.6))
+    canvas_height = output_height
+
+    # Center on the font's actual measured ink extent rather than assumed
+    # ascent/descent proportions: different fonts (the bundled DejaVu Sans
+    # here vs. whatever "sans-serif" resolves to in a browser) place glyphs
+    # very differently relative to their nominal em size, so a fixed
+    # formula tuned for one font crops or off-centers text in another.
+    _left, ink_top, _right, ink_bottom = font.getbbox(plain_text)
+    ink_height = ink_bottom - ink_top
+    target_top = (canvas_height - ink_height) // 2
+    y = target_top - ink_top
 
     image = Image.new("RGB", (canvas_width, canvas_height), hex_to_rgb(background_color))
     draw = ImageDraw.Draw(image)
 
     current_color = color
     x_offset = float(padding)
-    y = (canvas_height - font_px) // 2
     for seg in segments:
         if seg["text"]:
             draw.text((x_offset, y), seg["text"], font=font, fill=hex_to_rgb(current_color), anchor="la")
@@ -91,8 +101,6 @@ def text_to_pixel_bits(
             current_color = seg["color"]
 
     pixels = image.load()
-    bg_r, bg_g, bg_b = hex_to_rgb(background_color)
-    top_offset = (output_height - canvas_height) // 2
 
     barr_r = bytearray()
     barr_g = bytearray()
@@ -101,11 +109,7 @@ def text_to_pixel_bits(
     for x in range(canvas_width):
         tmp_r = tmp_g = tmp_b = 0
         for y in range(output_height):
-            src_y = y - top_offset
-            if src_y < 0 or src_y >= canvas_height:
-                r, g, b = bg_r, bg_g, bg_b
-            else:
-                r, g, b = pixels[x, src_y]
+            r, g, b = pixels[x, y]
 
             tmp_r = ((tmp_r << 1) | (1 if r >= 128 else 0)) & 0xFF
             tmp_g = ((tmp_g << 1) | (1 if g >= 128 else 0)) & 0xFF
