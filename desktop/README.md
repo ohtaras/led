@@ -59,19 +59,32 @@ don't need to build it locally — just grab the Actions artifact.
 2. Copy a shortcut to `OPPCLedSignControl.exe` into that folder.
 
 The app will then start (and begin auto-connecting to signs) whenever you
-log in. Combined with the automatic OPAP updates below, the whole thing
-runs unattended as long as the computer is on and logged in.
+log in. Useful if you want the interactive control panel available without
+having to double-click the exe every time.
 
 ## Automatic OPAP updates
 
-The app fetches the live Τζόκερ/EuroJackpot jackpot amounts, rebuilds the
-ticker message, and sends it to every connected sign **on its own**, just
-after midnight on each day those amounts actually change: **Tuesday,
-Thursday, Friday, and Sunday**. No button press needed. The Λόττο amount
-(fixed) and font size/background color used for these automatic runs are
-whatever was last set in the control panel UI — they're saved to
-`~/.coolledx/settings.json` so they're available even with no browser
-open.
+The Τζόκερ/EuroJackpot jackpot amounts change overnight, just after
+midnight, on **Tuesday, Thursday, Friday, and Sunday**. If your computer is
+reliably on and running the app at that exact moment, that update happens
+on its own with no button press. If it isn't (e.g. the computer is off
+overnight), use **Windows Task Scheduler** instead to run a quick
+scan → fetch → send → exit pass at a time your computer *is* on, e.g.
+9:00 AM on those same days:
+
+1. Open **Task Scheduler** (search for it in the Start menu) → **Create Task…** (not "Create Basic Task", so all options below are available).
+2. **General** tab: name it e.g. `OPPC LED Update`.
+3. **Triggers** tab → **New…** → Begin the task: `On a schedule` → `Weekly` → tick **Tuesday, Thursday, Friday, Sunday** → set the start time to `9:00:00 AM`.
+4. **Actions** tab → **New…** → Action: `Start a program` → **Program/script**: browse to your `OPPCLedSignControl.exe` → **Add arguments**: `--once`.
+5. **Settings** tab → tick **"Run task as soon as possible after a scheduled start is missed"** (catches up if the computer happened to be off/asleep right at 9:00).
+6. Click OK (enter your Windows password if prompted, only needed if you chose "Run whether user is logged on or not" on the General tab).
+
+With `--once`, the app doesn't open a browser or stay running — it scans
+for known signs, waits up to a minute for them to connect, fetches OPAP,
+sends the ticker message, then exits by itself. The Λόττο amount (fixed)
+and font size/background color it uses are whatever was last set in the
+control panel UI — saved to `~/.coolledx/settings.json` so they're
+available even with no browser open.
 
 ## Project layout
 
@@ -94,7 +107,8 @@ open.
 - `led_bridge/static/` — the control panel UI (adapted from the root
   browser app; talks to the REST API with `fetch()` instead of Web
   Bluetooth).
-- `led_bridge/main.py` / `run_app.py` — entry point.
+- `led_bridge/main.py` / `run_app.py` — entry point (`--once` for a
+  single scan/fetch/send/exit pass, for Task Scheduler).
 - `led_bridge.spec` — PyInstaller build spec.
 
 ## Limitations
@@ -105,6 +119,7 @@ open.
   renderer, so exact letter shapes/kerning can differ slightly from the
   sign — it's still byte-accurate to what actually gets sent, since the
   preview image is decoded from the same pixel data.
-- The automatic midnight update only runs while the app is actually
-  running (and the computer is on/awake) at that moment — use the Windows
-  startup shortcut above if you want it truly unattended.
+- `--once` needs the computer awake (not asleep/hibernating) at the
+  scheduled time — Task Scheduler can wake some machines for a task (an
+  extra checkbox on the trigger's "Conditions" tab), but this isn't
+  universal across all hardware.

@@ -99,12 +99,12 @@ class SignManager:
     async def scan_and_connect_loop(self) -> None:
         while True:
             try:
-                await self._scan_once()
+                await self.scan_once()
             except Exception:
                 log.exception("Scan/connect pass failed")
             await asyncio.sleep(SCAN_INTERVAL_S)
 
-    async def _scan_once(self) -> None:
+    async def scan_once(self) -> None:
         devices = await BleakScanner.discover(timeout=SCAN_TIMEOUT_S)
         for device in devices:
             if not device.name or not device.name.startswith(NAME_PREFIX):
