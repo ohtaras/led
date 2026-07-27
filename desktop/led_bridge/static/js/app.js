@@ -250,6 +250,32 @@ function buildMessageFromAmounts() {
   renderPreview();
 }
 
+async function loadSettings() {
+  try {
+    const settings = await api('/api/settings');
+    els.lottoAmount.value = settings.lottoAmount;
+    els.fontSize.value = settings.fontPx;
+    els.bgColor.value = settings.backgroundColor;
+  } catch (err) {
+    log(`Failed to load saved settings: ${err.message}`, 'error');
+  }
+}
+
+// Persisted server-side (not just in this browser tab) so the automatic
+// midnight OPAP update can build the message with these same values even
+// when no browser is open.
+function persistSettings() {
+  api('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      lottoAmount: parseInt(els.lottoAmount.value, 10) || 0,
+      fontPx: parseInt(els.fontSize.value, 10) || 13,
+      backgroundColor: els.bgColor.value,
+    }),
+  }).catch((err) => log(`Failed to save settings: ${err.message}`, 'error'));
+}
+
 els.fetchOpapBtn.addEventListener('click', async () => {
   await withBusy(async () => {
     try {
@@ -269,6 +295,13 @@ els.fetchOpapBtn.addEventListener('click', async () => {
 
 [els.text, els.bgColor, els.fontSize].forEach((el) => {
   el.addEventListener('input', schedulePreview);
+});
+
+els.bgColor.addEventListener('change', persistSettings);
+els.fontSize.addEventListener('change', persistSettings);
+els.lottoAmount.addEventListener('change', () => {
+  persistSettings();
+  buildMessageFromAmounts();
 });
 
 els.text.addEventListener('keydown', (e) => {
@@ -298,7 +331,10 @@ document.querySelectorAll('#colorPalette .swatch').forEach((swatch) => {
 });
 
 els.text.style.color = els.color.value;
-buildMessageFromAmounts();
 renderDeviceList();
-refreshDeviceList();
-setInterval(refreshDeviceList, POLL_INTERVAL_MS);
+(async () => {
+  await loadSettings();
+  buildMessageFromAmounts();
+  refreshDeviceList();
+  setInterval(refreshDeviceList, POLL_INTERVAL_MS);
+})();

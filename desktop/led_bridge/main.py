@@ -11,6 +11,7 @@ import webbrowser
 from aiohttp import web
 
 from .manager import SignManager
+from .scheduler import scheduler_loop
 from .server import create_app
 
 HOST = "127.0.0.1"
@@ -34,8 +35,9 @@ async def _run() -> None:
     webbrowser.open(url)
 
     scan_task = asyncio.create_task(manager.scan_and_connect_loop())
+    schedule_task = asyncio.create_task(scheduler_loop(manager, app["http_session"]))
     try:
-        await scan_task
+        await asyncio.gather(scan_task, schedule_task)
     finally:
         await runner.cleanup()
 
