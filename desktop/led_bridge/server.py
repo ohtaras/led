@@ -13,8 +13,10 @@ import os
 import aiohttp
 from aiohttp import web
 
+from . import settings_store
 from ._paths import resource_path
 from .manager import SignManager
+from .opap import OPAP_GAME_IDS, fetch_jackpot
 from .render import render_preview_png_data_uri
 
 log = logging.getLogger("led_bridge.server")
@@ -25,21 +27,6 @@ _STATIC_DIR = resource_path("static")
 # from the original web app's js/app.js).
 DEVICE_WIDTH = 64
 DEVICE_HEIGHT = 16
-
-# Same OPAP endpoint/logic as js/app.js's fetchOpapJackpot, just run
-# server-side so the user's OS-level internet access is used directly.
-OPAP_GAME_IDS = {"tzoker": 5104, "eurojackpot": 5149}
-
-
-async def _fetch_opap_jackpot(session: aiohttp.ClientSession, game_id: int) -> float:
-    url = f"https://api.opap.gr/draws/v3.0/{game_id}/active"
-    async with session.get(url) as res:
-        if res.status != 200:
-            raise RuntimeError(f"OPAP request failed: HTTP {res.status}")
-        data = await res.json()
-    categories = data.get("prizeCategories", [])
-    category = next((c for c in categories if c.get("categoryType") == 0), categories[0] if categories else {})
-    return max(category.get("jackpot") or 0, category.get("minimumDistributed") or 0)
 
 
 def create_app(manager: SignManager) -> web.Application:
@@ -113,10 +100,18 @@ def create_app(manager: SignManager) -> web.Application:
         if game_id is None:
             return web.json_response({"error": f"Unknown game '{game}'."}, status=400)
         try:
-            amount = await _fetch_opap_jackpot(app["http_session"], game_id)
+            amount = await fetch_jackpot(app["http_session"], game_id)
         except Exception as exc:
             return web.json_response({"error": str(exc)}, status=502)
         return web.json_response({"game": game, "amount": amount})
+
+    async def get_settings(request: web.Request) -> web.Response:
+        return web.json_response(settings_store.load_settings())
+
+    async def update_settings(request: web.Request) -> web.Response:
+        body = await request.json()
+        allowed = {k: body[k] for k in ("lottoAmount", "fontPx", "backgroundColor") if k in body}
+        return web.json_response(settings_store.save_settings(allowed))
 
     async def index(request: web.Request) -> web.Response:
         return web.FileResponse(os.path.join(_STATIC_DIR, "index.html"))
@@ -128,6 +123,8 @@ def create_app(manager: SignManager) -> web.Application:
     app.router.add_post("/api/send", send)
     app.router.add_post("/api/preview", preview)
     app.router.add_get("/api/opap", opap)
+    app.router.add_get("/api/settings", get_settings)
+    app.router.add_post("/api/settings", update_settings)
     app.router.add_get("/", index)
     app.router.add_static("/", _STATIC_DIR, show_index=False)
 

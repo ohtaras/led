@@ -59,7 +59,19 @@ don't need to build it locally — just grab the Actions artifact.
 2. Copy a shortcut to `OPPCLedSignControl.exe` into that folder.
 
 The app will then start (and begin auto-connecting to signs) whenever you
-log in.
+log in. Combined with the automatic OPAP updates below, the whole thing
+runs unattended as long as the computer is on and logged in.
+
+## Automatic OPAP updates
+
+The app fetches the live Τζόκερ/EuroJackpot jackpot amounts, rebuilds the
+ticker message, and sends it to every connected sign **on its own**, just
+after midnight on each day those amounts actually change: **Tuesday,
+Thursday, Friday, and Sunday**. No button press needed. The Λόττο amount
+(fixed) and font size/background color used for these automatic runs are
+whatever was last set in the control panel UI — they're saved to
+`~/.coolledx/settings.json` so they're available even with no browser
+open.
 
 ## Project layout
 
@@ -70,8 +82,15 @@ log in.
   Sans font (supports Greek + €).
 - `led_bridge/manager.py` — background BLE scan/connect loop (bleak),
   sign bookkeeping (nicknames, selection), serialized sends.
+- `led_bridge/opap.py` / `led_bridge/messages.py` — OPAP fetch + ticker
+  message building, shared by the manual "Fetch from OPAP" button and the
+  automatic scheduler.
+- `led_bridge/scheduler.py` — background loop that triggers the automatic
+  Tue/Thu/Fri/Sun midnight update.
+- `led_bridge/settings_store.py` — persisted Λόττο amount/font/background
+  color (`~/.coolledx/settings.json`).
 - `led_bridge/server.py` — local REST API (`/api/signs`, `/api/send`,
-  `/api/preview`, `/api/opap`, ...) + static file serving.
+  `/api/preview`, `/api/opap`, `/api/settings`, ...) + static file serving.
 - `led_bridge/static/` — the control panel UI (adapted from the root
   browser app; talks to the REST API with `fetch()` instead of Web
   Bluetooth).
@@ -86,3 +105,6 @@ log in.
   renderer, so exact letter shapes/kerning can differ slightly from the
   sign — it's still byte-accurate to what actually gets sent, since the
   preview image is decoded from the same pixel data.
+- The automatic midnight update only runs while the app is actually
+  running (and the computer is on/awake) at that moment — use the Windows
+  startup shortcut above if you want it truly unattended.
