@@ -21,7 +21,10 @@ async def _run() -> None:
     manager = SignManager()
     app = create_app(manager)
 
-    runner = web.AppRunner(app)
+    # The frontend polls /api/signs every couple seconds to keep the sign
+    # list live; logging every one of those requests would drown out the
+    # connection-status messages that actually matter.
+    runner = web.AppRunner(app, access_log=None)
     await runner.setup()
     site = web.TCPSite(runner, HOST, PORT)
     await site.start()
