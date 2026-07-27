@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OPPC LED Sign Control</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header>
+    <div>
+      <h1>OPPC LED Sign Control</h1>
+      <p>Desktop control for CoolLEDX / CoolLED1248 flexible LED signs</p>
+    </div>
+    <div>
+      <div id="status"></div>
+    </div>
+  </header>
+
+  <main>
+    <div class="card">
+      <h2>Signs</h2>
+      <div id="deviceList"></div>
+      <p class="hint">
+        Signs are found and connected automatically in the background as soon as they're powered
+        on and in range — no clicking needed. Click a sign's name to rename it. Untick a sign to
+        leave it out of the next action.
+      </p>
+    </div>
+
+    <div id="controlPanel" class="disabled">
+      <div class="card">
+        <h2>Text</h2>
+        <div class="field">
+          <label>Jackpot amounts</label>
+          <div class="field-row">
+            <div class="field">
+              <label for="tzokerAmount">Τζόκερ (€)</label>
+              <input type="number" id="tzokerAmount" value="1300000" min="0" step="1" />
+            </div>
+            <div class="field">
+              <label for="lottoAmount">Λόττο / μήνα (€)</label>
+              <input type="number" id="lottoAmount" value="10000" min="0" step="1" />
+            </div>
+            <div class="field">
+              <label for="eurojackpotAmount">EuroJackpot (€)</label>
+              <input type="number" id="eurojackpotAmount" value="10000000" min="0" step="1" />
+            </div>
+          </div>
+          <div class="button-row">
+            <button id="fetchOpapBtn" class="secondary">Fetch from OPAP &amp; build message</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="textInput">Message</label>
+          <div id="textInput" class="rich-text-input" contenteditable="true" data-placeholder="Type your message…"></div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="textColor">Text color</label>
+            <input type="color" id="textColor" value="#ff0000" />
+            <div id="colorPalette" class="palette-row">
+              <button type="button" class="swatch" data-color="#ff0000" style="background:#ff0000" title="Red"></button>
+              <button type="button" class="swatch" data-color="#ff00ff" style="background:#ff00ff" title="Magenta"></button>
+              <button type="button" class="swatch" data-color="#ffff00" style="background:#ffff00" title="Yellow"></button>
+              <button type="button" class="swatch" data-color="#00ff00" style="background:#00ff00" title="Green"></button>
+              <button type="button" class="swatch" data-color="#00ffff" style="background:#00ffff" title="Cyan"></button>
+              <button type="button" class="swatch" data-color="#0000ff" style="background:#0000ff" title="Blue"></button>
+              <button type="button" class="swatch" data-color="#ffffff" style="background:#ffffff" title="White"></button>
+            </div>
+            <p class="hint">
+              Select part of the message, then click a color to paint just that part —
+              rest stays as-is. Click with nothing selected to change color from there onward.
+            </p>
+          </div>
+          <div class="field">
+            <label for="bgColor">Background color</label>
+            <input type="color" id="bgColor" value="#000000" />
+          </div>
+          <div class="field">
+            <label for="fontSize">Font size (px)</label>
+            <input type="number" id="fontSize" value="13" min="6" max="64" />
+          </div>
+        </div>
+        <button id="sendBtn">Send to sign</button>
+      </div>
+
+      <div class="card">
+        <h2>Preview</h2>
+        <div class="preview-wrap">
+          <img id="preview" alt="Sign preview" />
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Activity log</h2>
+        <div id="log"></div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+bleak>=0.22
+aiohttp>=3.9
+Pillow>=10.0
+pyinstaller>=6.0

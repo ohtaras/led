@@ -1,5 +1,12 @@
 # led
 
+> **Looking for automatic Bluetooth connection?** See [`desktop/`](desktop/)
+> for a local desktop app that auto-connects to known signs in the
+> background — no browser Bluetooth permission dialogs. The browser-based
+> version below requires manually re-adding each sign on some
+> Chrome/Edge installs, since `navigator.bluetooth.getDevices()` (needed for
+> persistent auto-reconnect) doesn't work everywhere.
+
 A browser-based control panel for **CoolLEDX** flexible LED matrix signs — the
 kind paired with the "CoolLED1248" phone app (devices show up as
 `CoolLEDX-XXXX` when scanning). It talks directly to the sign over
